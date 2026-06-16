@@ -1,0 +1,146 @@
+# Semgrep rules cho phát hiện Unauthenticated LFI trong WordPress plugins.
+#
+# Triết lý: KHÔNG tìm cách dò "unauth LFI" trong 1 rule. Thay vào đó:
+#   1. Tìm mọi LFI candidate qua taint analysis (rule: wp-lfi-taint)
+#   2. Tìm mọi unauth entry point trong plugin (rule: wp-nopriv-*)
+#   3. Script triage.py correlate 2 tập trên + LLM phân tích final
+#
+# Lý do: cùng 1 hàm có thể được đăng ký ở nhiều nơi; correlate ở Python dễ hơn
+# nhiều so với viết 1 Semgrep rule khổng lồ.
+
+rules:
+
+  # ============================================================================
+  # CORE: LFI taint flow
+  # ============================================================================
+  - id: wp-lfi-taint
+    languages: [php]
+    severity: WARNING
+    message: User input chảy vào file inclusion/read sink
+    metadata:
+      category: security
+      cwe: "CWE-98: Improper Control of Filename for Include/Require"
+      vuln-class: lfi
+      confidence: medium
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $_GET[...]
+              - pattern: $_POST[...]
+              - pattern: $_REQUEST[...]
+              - pattern: $_COOKIE[...]
+              - pattern: $_FILES[...]
+              # WP wrapper functions thường được dùng (vẫn là tainted)
+              - pattern: sanitize_text_field($_GET[...])
+              - pattern: sanitize_text_field($_POST[...])
+              - pattern: sanitize_text_field($_REQUEST[...])
+              - pattern: wp_unslash($_GET[...])
+              - pattern: wp_unslash($_POST[...])
+              - pattern: wp_unslash($_REQUEST[...])
+              # WP REST API: $request->get_param() / get_params() / get_body()
+              - pattern: $REQ->get_param(...)
+              - pattern: $REQ->get_params()
+              - pattern: $REQ->get_body()
+              - pattern: $REQ->get_body_params()
+              - pattern: $REQ->get_query_params()
+              - pattern: $REQ->get_json_params()
+              - pattern: $REQ[...]   # WP_REST_Request implements ArrayAccess
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: include($SINK)
+              - pattern: include_once($SINK)
+              - pattern: require($SINK)
+              - pattern: require_once($SINK)
+              - pattern: readfile($SINK)
+              - pattern: file_get_contents($SINK)
+              - pattern: show_source($SINK)
+              - pattern: highlight_file($SINK)
+              - pattern: fopen($SINK, ...)
+              - pattern: file($SINK)
+              - pattern: virtual($SINK)
+    pattern-sanitizers:
+      # Sanitizer "mạnh" — chặn được path traversal
+      - pattern: sanitize_file_name(...)
+      # basename chặn ../ nhưng vẫn cho phép same-folder LFI -> KHÔNG để vào
+      # sanitizer ở đây để LLM còn xem xét. Tương tự realpath() đơn độc không
+      # đủ (cần thêm prefix check).
+      - patterns:
+          - pattern-either:
+              - pattern: in_array($X, $ALLOWED, ...)
+              - pattern: in_array($X, $ALLOWED)
+      # Hash đường dẫn (pattern dùng trong vài plugin)
+      - pattern: md5($X)
+      - pattern: hash(..., $X)
+
+  # ============================================================================
+  # UNAUTH ENTRY POINTS — đánh dấu để triage.py correlate
+  # ============================================================================
+  - id: wp-nopriv-ajax-handler
+    languages: [php]
+    severity: INFO
+    message: Unauthenticated AJAX handler (wp_ajax_nopriv_*)
+    metadata:
+      category: security
+      vuln-class: unauth-entry
+    patterns:
+      - pattern: add_action($HOOK, $FN, ...)
+      - metavariable-regex:
+          metavariable: $HOOK
+          regex: ^['"]wp_ajax_nopriv_
+
+  - id: wp-nopriv-admin-post
+    languages: [php]
+    severity: INFO
+    message: Unauthenticated admin-post handler (admin_post_nopriv_*)
+    metadata:
+      category: security
+      vuln-class: unauth-entry
+    patterns:
+      - pattern: add_action($HOOK, $FN, ...)
+      - metavariable-regex:
+          metavariable: $HOOK
+          regex: ^['"]admin_post_nopriv_
+
+  - id: wp-rest-public-route
+    languages: [php]
+    severity: INFO
+    message: Public REST route (permission_callback trả về true)
+    metadata:
+      category: security
+      vuln-class: unauth-entry
+    pattern-either:
+      - pattern: |
+          register_rest_route(..., ..., array(..., "permission_callback" => "__return_true", ...))
+      - pattern: |
+          register_rest_route(..., ..., array(..., 'permission_callback' => '__return_true', ...))
+      - pattern: |
+          register_rest_route(..., ..., [..., "permission_callback" => "__return_true", ...])
+      - pattern: |
+          register_rest_route(..., ..., [..., 'permission_callback' => '__return_true', ...])
+      # Closure trả về true
+      - pattern: |
+          register_rest_route(..., ..., array(..., "permission_callback" => function(...) { return true; }, ...))
+      - pattern: |
+          register_rest_route(..., ..., array(..., 'permission_callback' => function(...) { return true; }, ...))
+
+  # ============================================================================
+  # BONUS: Direct file access — file PHP được hit trực tiếp qua URL không qua WP bootstrap
+  # ============================================================================
+  - id: wp-direct-file-no-abspath-guard
+    languages: [php]
+    severity: INFO
+    message: PHP file không có ABSPATH guard (có thể truy cập trực tiếp qua URL)
+    metadata:
+      category: security
+      vuln-class: unauth-entry
+    # File PHP không có defined('ABSPATH') check ở đầu = có thể bị gọi trực tiếp
+    # Đây là entry point unauth nếu plugin xử lý request ngay trong file đó.
+    patterns:
+      - pattern-not-regex: "defined\\s*\\(\\s*['\"]ABSPATH['\"]"
+      - pattern-not-regex: "ABSPATH.*exit"
+      - pattern-either:
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+          - pattern: $_REQUEST[...]
